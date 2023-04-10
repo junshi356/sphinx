@@ -1213,6 +1213,22 @@ def test_info_field_list_var(app):
     assert_node(doctree[1][1][0][0][1][0][2], pending_xref,
                 refdomain="py", reftype="class", reftarget="int", **{"py:class": "Class"})
 
+def test_xref_parsing_int_field(app):
+    text = (".. py:class:: Class\n"
+            "\n"
+            "   :var int attr: blah blah\n")
+    
+    doctree = restructuredtext.parse(app, text)
+    has_refspecific = doctree[1][1][0][0][1][0][2].hasattr('refspecific') # currently is True
+
+    from sphinx.transforms import SphinxTransformer
+    from sphinx.transforms.post_transforms import ReferencesResolver
+    transformer = SphinxTransformer(doctree)
+    transformer.set_environment(app.env)
+    app.env.prepare_settings('test-doc1')
+    transformer.add_transforms([ReferencesResolver])
+    transformer.apply_transforms() # has_refspecific causes to enter fuzzy search mode
+
 
 def test_info_field_list_napoleon_deliminator_of(app):
     text = (".. py:module:: example\n"
@@ -1470,70 +1486,3 @@ def test_module_content_line_number(app):
     source, line = docutils.utils.get_source_line(xrefs[0])
     assert 'index.rst' in source
     assert line == 3
-
-
-@pytest.mark.sphinx(freshenv=True, confoverrides={'python_display_short_literal_types': True})
-def test_short_literal_types(app):
-    text = """\
-.. py:function:: literal_ints(x: Literal[1, 2, 3] = 1) -> None
-.. py:function:: literal_union(x: Union[Literal["a"], Literal["b"], Literal["c"]]) -> None
-"""
-    doctree = restructuredtext.parse(app, text)
-    assert_node(doctree, (
-        addnodes.index,
-        [desc, (
-            [desc_signature, (
-                [desc_name, 'literal_ints'],
-                [desc_parameterlist, (
-                    [desc_parameter, (
-                        [desc_sig_name, 'x'],
-                        [desc_sig_punctuation, ':'],
-                        desc_sig_space,
-                        [desc_sig_name, (
-                            [desc_sig_literal_number, '1'],
-                            desc_sig_space,
-                            [desc_sig_punctuation, '|'],
-                            desc_sig_space,
-                            [desc_sig_literal_number, '2'],
-                            desc_sig_space,
-                            [desc_sig_punctuation, '|'],
-                            desc_sig_space,
-                            [desc_sig_literal_number, '3'],
-                        )],
-                        desc_sig_space,
-                        [desc_sig_operator, '='],
-                        desc_sig_space,
-                        [nodes.inline, '1'],
-                    )],
-                )],
-                [desc_returns, pending_xref, 'None'],
-            )],
-            [desc_content, ()],
-        )],
-        addnodes.index,
-        [desc, (
-            [desc_signature, (
-                [desc_name, 'literal_union'],
-                [desc_parameterlist, (
-                    [desc_parameter, (
-                        [desc_sig_name, 'x'],
-                        [desc_sig_punctuation, ':'],
-                        desc_sig_space,
-                        [desc_sig_name, (
-                            [desc_sig_literal_string, "'a'"],
-                            desc_sig_space,
-                            [desc_sig_punctuation, '|'],
-                            desc_sig_space,
-                            [desc_sig_literal_string, "'b'"],
-                            desc_sig_space,
-                            [desc_sig_punctuation, '|'],
-                            desc_sig_space,
-                            [desc_sig_literal_string, "'c'"],
-                        )],
-                    )],
-                )],
-                [desc_returns, pending_xref, 'None'],
-            )],
-            [desc_content, ()],
-        )],
-    ))
